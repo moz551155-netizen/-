@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>藝術技法互動連連看測驗</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- p5.js Library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+  <!-- Google Fonts: Chiron GoRound TC -->
+  <link href="https://fonts.googleapis.com/css2?family=Chiron+GoRound+TC:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Chiron GoRound TC', sans-serif;
+      background-color: #f8fafc;
+      color: #1e293b;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .art-font {
+      font-family: 'Chiron GoRound TC', sans-serif;
+      font-weight: 700;
+    }
+    /* 自訂滾動條 */
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+    canvas {
+      display: block;
+      touch-action: none;
+    }
+    /* 精緻背景山水紋理裝飾 */
+    .bg-landscape-banner {
+      background-image: 
+        linear-gradient(to bottom, rgba(248, 250, 252, 0.45), rgba(248, 250, 252, 0.98)),
+        url('https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1600&q=80');
+      background-size: cover;
+      background-position: center 35%;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-between p-3 sm:p-6 bg-landscape-banner relative overflow-x-hidden">
+
+  <!-- 頂部標題區 -->
+  <header class="w-full max-w-5xl text-center mb-3 relative z-10">
+    <div class="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-semibold mb-2 shadow-sm backdrop-blur-sm">
+      <span class="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></span>
+      <span>p5.js 互動視覺測驗 — 相同風景‧五種技法</span>
+    </div>
+    <h1 class="text-2xl sm:text-4xl font-bold tracking-tight art-font bg-gradient-to-r from-amber-700 via-rose-600 to-indigo-800 bg-clip-text text-transparent drop-shadow-sm">
+      Master of Mediums : 藝術技法連連看
+    </h1>
+    <p class="text-slate-600 text-xs sm:text-sm mt-1 font-medium">
+      左側圖片皆描繪「山巒與湖泊」風景，請觀察其不同繪畫筆觸與色彩質感，與右側技法名稱連線配對。
+    </p>
+  </header>
+
+  <!-- 主遊戲容器 (p5.js Canvas 掛載點) -->
+  <main class="w-full max-w-5xl flex-1 flex flex-col items-center justify-center relative z-10">
+    <div id="canvas-container" class="w-full bg-white/70 backdrop-blur-md rounded-2xl border border-white/80 shadow-xl shadow-slate-200/60 overflow-hidden relative flex justify-center items-center">
+      <!-- p5 Canvas 會自動插在這裡 -->
+    </div>
+
+    <!-- 結果與錯題解析彈窗 -->
+    <div id="score-modal" class="hidden absolute inset-0 bg-slate-900/40 backdrop-blur-md flex flex-col items-center justify-center rounded-2xl p-4 sm:p-6 z-20 transition-all duration-300 overflow-y-auto">
+      <div class="bg-white border border-slate-200 p-5 sm:p-7 rounded-2xl max-w-2xl w-full shadow-2xl relative my-auto">
+        <div class="text-center mb-4">
+          <div id="modal-badge" class="w-14 h-14 rounded-full mx-auto flex items-center justify-center text-3xl mb-2 bg-amber-50 text-amber-600 border border-amber-200 shadow-inner">
+            🏆
+          </div>
+          <h2 id="modal-title" class="text-2xl font-bold text-slate-800 mb-1">測驗完成！</h2>
+          <div id="modal-score" class="text-3xl font-black art-font text-indigo-600 my-1">6 / 6</div>
+          <p id="modal-desc" class="text-slate-600 text-xs sm:text-sm leading-relaxed">觀察力敏銳！你成功分辨出了所有技法的特徵。</p>
+        </div>
+
+        <!-- 錯題與技法特徵解析列表區塊 -->
+        <div class="mt-4 text-left border-t border-slate-100 pt-4">
+          <h3 class="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
+            <span>🔍 技法特徵與答題解析</span>
+          </h3>
+          <div id="analysis-list" class="space-y-2.5 max-h-56 sm:max-h-64 overflow-y-auto pr-1">
+            <!-- 動態插入解析卡片 -->
+          </div>
+        </div>
+
+        <div class="mt-5 flex gap-3">
+          <button onclick="restartGame()" class="w-full py-3 px-6 rounded-xl bg-gradient-to-r from-indigo-600 to-rose-500 hover:from-indigo-700 hover:to-rose-600 text-white font-medium text-sm shadow-md transition duration-200 active:scale-95">
+            重新挑戰 🔄
+          </button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- 底部按鈕控制區 -->
+  <footer class="w-full max-w-5xl flex flex-wrap items-center justify-between gap-3 mt-4 px-2 relative z-10">
+    <div class="flex items-center space-x-2 text-xs text-slate-600 font-medium">
+      <span class="inline-block w-3 h-3 rounded-full bg-emerald-500"></span>
+      <span>綠線：正確</span>
+      <span class="inline-block w-3 h-3 rounded-full bg-rose-500 ml-2"></span>
+      <span>紅線：錯誤</span>
+    </div>
+    
+    <div class="flex items-center space-x-3">
+      <button onclick="resetConnections()" class="px-4 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 text-sm font-medium transition border border-slate-200 shadow-sm active:scale-95 flex items-center gap-1.5">
+        <span>重置連線</span> ↺
+      </button>
+      <button onclick="submitAnswers()" class="px-6 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-sm font-semibold shadow-md shadow-emerald-600/20 transition active:scale-95 flex items-center gap-1.5">
+        <span>提交答案</span> ✓
+      </button>
+    </div>
+  </footer>
+
+  <!-- p5.js Sketch 邏輯碼 -->
+  <script>
+    const TECH_DATA = [
+      { 
+        id: 'watercolor', 
+        name: '水彩 (Watercolor)', 
+        features: '透明邊緣擴散、多層次顏料堆疊與柔滑的水痕暈染感。',
+        tip: '注意觀察太陽與山巒邊緣的水氣擴散斑駁感。'
+      },
+      { 
+        id: 'oil', 
+        name: '油畫 (Oil Painting)', 
+        features: '色彩飽和厚重、刮刀厚塗疊色與立體顯著的高光筆觸。',
+        tip: '山脈與天空具有明顯的重彩短筆觸堆疊與光澤感。'
+      },
+      { 
+        id: 'sketch', 
+        name: '素描 (Pencil Sketch)', 
+        features: '單色石墨線條、斜向交叉排線與濃淡壓力的質感顆粒。',
+        tip: '整幅畫作僅用黑色鉛筆筆觸與排線描繪明暗陰影。'
+      },
+      { 
+        id: 'ink', 
+        name: '水墨 (Ink Wash)', 
+        features: '墨分五色（濃淡焦重清）、宣紙水氣滲透與筆墨飛白留白。',
+        tip: '山體呈現隨性濃墨勾勒，天空與湖面有大面積濕潤墨韻。'
+      },
+      { 
+        id: 'acrylic', 
+        name: '壓克力 (Acrylic)', 
+        features: '色塊邊界清晰切分、飽和度高、具有平塗與現代插畫質感。',
+        tip: '山峰與太陽由幾何化平面色塊組成，無複雜漸層擴散。'
+      },
+      { 
+        id: 'colored_pencil', 
+        name: '色鉛筆 (Colored Pencil)', 
+        features: '多色筆觸細緻堆疊、細密排線與紙張顆粒間透出的柔和質感。',
+        tip: '畫面充滿細緻的雙色/三色斜線交叉筆觸，色調暖和柔潤。'
+      }
+    ];
+
+    let imagesData = [];   
+    let labelsData = [];   
+    let connections = [];  
+    
+    let draggingFromImg = null; 
+    let hoveredImg = null;      
+    let hoveredLabel = null;    
+    let selectedImg = null;     
+
+    let isEvaluated = false;    
+    let canvasWidth = 900;
+    let canvasHeight = 600;
+    let imgGraphics = {};       
+
+    function setup() {
+      const container = document.getElementById('canvas-container');
+      const w = container.clientWidth;
+      canvasWidth = Math.max(w, 340);
+      canvasHeight = Math.min(Math.max(window.innerHeight * 0.7, 520), 640);
+
+      let canvas = createCanvas(canvasWidth, canvasHeight);
+      canvas.parent('canvas-container');
+
+      generateLandscapeTextures();
+      initGameNodes();
+    }
+
+    function windowResized() {
+      const container = document.getElementById('canvas-container');
+      const w = container.clientWidth;
+      canvasWidth = Math.max(w, 340);
+      resizeCanvas(canvasWidth, canvasHeight);
+      initGameNodes(); 
+    }
+
+    function initGameNodes() {
+      imagesData = [];
+      labelsData = [];
+
+      let shuffledLabels = [...TECH_DATA].sort(() => Math.random() - 0.5);
+
+      const marginY = 25;
+      const availableH = canvasHeight - marginY * 2;
+      const count = TECH_DATA.length;
+      const stepY = availableH / count;
+
+      const isMobile = canvasWidth < 640;
+      const imgWidth = isMobile ? 80 : 115;
+      const imgHeight = isMobile ? 50 : 68;
+
+      const leftX = isMobile ? 12 : 40;
+      const rightX = canvasWidth - (isMobile ? 140 : 215);
+      const labelW = isMobile ? 120 : 175;
+      const labelH = isMobile ? 45 : 58;
+
+      for (let i = 0; i < count; i++) {
+        let centerY = marginY + i * stepY + stepY / 2;
+
+        imagesData.push({
+          id: TECH_DATA[i].id,
+          x: leftX,
+          y: centerY - imgHeight / 2,
+          w: imgWidth,
+          h: imgHeight,
+          anchorX: leftX + imgWidth,
+          anchorY: centerY,
+          data: TECH_DATA[i]
+        });
+
+        labelsData.push({
+          id: shuffledLabels[i].id,
+          name: shuffledLabels[i].name,
+          x: rightX,
+          y: centerY - labelH / 2,
+          w: labelW,
+          h: labelH,
+          anchorX: rightX,
+          anchorY: centerY,
+          data: shuffledLabels[i]
+        });
+      }
+    }
+
+    function draw() {
+      background(248, 250, 252); 
+
+      drawBackgroundGrid();
+      updateHoverState();
+
+      drawConnections();
+      drawActiveDraggingLine();
+      drawImageCards();
+      drawLabelCards();
+    }
+
+    function generateLandscapeTextures() {
+      const gW = 250, gH = 150;
+
+      // 1. 水彩 (Watercolor)
+      let gWc = createGraphics(gW, gH);
+      gWc.background(252, 249, 240);
+      gWc.noStroke();
+      for (let i = 0; i < 70; i++) {
+        gWc.fill(250, 150 + (i % 30), 110 + (i % 20), 12);
+        gWc.circle(160 + gWc.random(-40, 40), 40 + gWc.random(-25, 25), gWc.random(30, 90));
+      }
+      for (let r = 55; r > 8; r -= 3) {
+        gWc.fill(245, 90 + r * 1.5, 70, 20);
+        gWc.circle(170 + gWc.random(-1, 1), 45 + gWc.random(-1, 1), r + gWc.random(-4, 4));
+      }
+      gWc.fill(90, 110, 170, 35);
+      drawSoftWatercolorPoly(gWc, [[-10, 150], [-10, 105], [70, 45], [130, 85], [190, 35], [260, 100], [260, 150]]);
+      gWc.fill(120, 135, 195, 30);
+      drawSoftWatercolorPoly(gWc, [[-10, 150], [-10, 95], [65, 40], [125, 80], [185, 30], [260, 95], [260, 150]]);
+      gWc.fill(45, 70, 130, 45);
+      drawSoftWatercolorPoly(gWc, [[-10, 150], [-10, 120], [100, 75], [180, 115], [260, 85], [260, 150]]);
+      gWc.fill(30, 50, 100, 40);
+      drawSoftWatercolorPoly(gWc, [[-10, 150], [30, 105], [100, 75], [170, 110], [260, 95], [260, 150]]);
+      gWc.fill(60, 120, 165, 35);
+      gWc.rect(0, 105, gW, 45);
+      for (let k = 0; k < 45; k++) {
+        gWc.fill(240, 130, 90, gWc.random(15, 35));
+        gWc.ellipse(170 + gWc.random(-45, 45), 125 + gWc.random(-12, 12), gWc.random(15, 70), gWc.random(2, 6));
+      }
+      imgGraphics['watercolor'] = gWc;
+
+      // 2. 油畫 (Oil Painting)
+      let gOil = createGraphics(gW, gH);
+      gOil.background(20, 15, 30);
+      gOil.noStroke();
+      const skyColors = [[245, 110, 50], [250, 165, 70], [190, 75, 115], [75, 55, 105], [45, 35, 75]];
+      for (let y = 0; y < 105; y += 6) {
+        for (let x = 0; x < gW; x += 12) {
+          let c = skyColors[Math.floor(noise(x * 0.04, y * 0.04) * skyColors.length)];
+          gOil.fill(c[0] + gOil.random(-12, 12), c[1] + gOil.random(-12, 12), c[2], 230);
+          drawImpastoStroke(gOil, x + gOil.random(-4, 4), y + gOil.random(-3, 3), 18, 8);
+        }
+      }
+      for (let r = 38; r > 10; r -= 6) {
+        gOil.fill(255, 200 + (38 - r) * 1.5, 100 + (38 - r) * 3, 240);
+        gOil.circle(170 + gOil.random(-1, 1), 45 + gOil.random(-1, 1), r);
+      }
+      drawOilMountain(gOil, [[-10, 110], [70, 45], [130, 85], [190, 35], [260, 100]], [40, 55, 115]);
+      drawOilMountain(gOil, [[-10, 120], [100, 75], [180, 115], [260, 85]], [20, 35, 75]);
+      for (let y = 105; y < gH; y += 5) {
+        for (let x = 0; x < gW; x += 14) {
+          let ratio = y / gH;
+          gOil.fill(35 + ratio * 30, 80 + ratio * 45, 135 + ratio * 20, 230);
+          if (Math.abs(x - 170) < 55) {
+            gOil.fill(240, 125, 65, 230);
+          }
+          drawImpastoStroke(gOil, x + gOil.random(-4, 4), y, 20, 6);
+        }
+      }
+      imgGraphics['oil'] = gOil;
+
+      // 3. 素描 (Pencil Sketch)
+      let gSk = createGraphics(gW, gH);
+      gSk.background(246, 244, 238);
+      gSk.stroke(50, 50, 55, 200);
+      gSk.strokeWeight(1.2);
+      gSk.noFill();
+      gSk.circle(170, 45, 30);
+      for (let a = 0; a < TWO_PI; a += 0.2) {
+        gSk.line(170 + cos(a) * 16, 45 + sin(a) * 16, 170 + cos(a) * 24, 45 + sin(a) * 24);
+      }
+      drawPencilHatching(gSk, 0, 0, gW, 80, 0.5, 12);
+      drawPencilHatching(gSk, 0, 0, gW, 60, 0.4, 8);
+      drawPencilMountain(gSk, [[-10, 110], [70, 45], [130, 85], [190, 35], [260, 100]], 1.2, 45);
+      drawPencilMountain(gSk, [[-10, 120], [100, 75], [180, 115], [260, 85]], 1.6, -45);
+      drawPencilMountain(gSk, [[-10, 130], [50, 95], [100, 75], [150, 100]], 1.8, 15);
+      gSk.stroke(45, 45, 50, 160);
+      for (let y = 107; y < gH; y += 3) {
+        let xStart = gSk.random(-10, 40);
+        let len = gSk.random(50, 160);
+        gSk.strokeWeight(gSk.random(0.5, 1.2));
+        gSk.line(xStart, y, xStart + len, y);
+      }
+      gSk.noStroke();
+      gSk.fill(30, 30, 35, 30);
+      for (let k = 0; k < 900; k++) {
+        gSk.circle(gSk.random(gW), gSk.random(gH), gSk.random(0.6, 1.8));
+      }
+      imgGraphics['sketch'] = gSk;
+
+      // 4. 水墨 (Ink Wash)
+      let gInk = createGraphics(gW, gH);
+      gInk.background(236, 232, 220);
+      gInk.noStroke();
+      for (let i = 0; i < 15; i++) {
+        gInk.fill(30, 30, 30, gInk.random(5, 18));
+        gInk.ellipse(170 + gInk.random(-60, 60), 40 + gInk.random(-20, 20), gInk.random(60, 140), gInk.random(30, 70));
+      }
+      gInk.stroke(20, 20, 20, 200);
+      gInk.strokeWeight(2.2);
+      gInk.noFill();
+      gInk.arc(170, 45, 28, 28, 0.3, TWO_PI - 0.4);
+      gInk.noStroke();
+      gInk.fill(40, 40, 45, 50);
+      gInk.beginShape();
+      gInk.vertex(0, gH);
+      gInk.vertex(0, 100);
+      gInk.bezierVertex(40, 68, 70, 42, 100, 68);
+      gInk.bezierVertex(140, 88, 190, 32, 250, 98);
+      gInk.vertex(gW, gH);
+      gInk.endShape(CLOSE);
+      gInk.stroke(15, 15, 15, 230);
+      gInk.strokeWeight(3.5);
+      gInk.noFill();
+      gInk.beginShape();
+      gInk.vertex(-10, 120);
+      gInk.vertex(100, 75);
+      gInk.vertex(180, 115);
+      gInk.vertex(260, 85);
+      gInk.endShape();
+      gInk.noStroke();
+      gInk.fill(25, 25, 25, 150);
+      gInk.beginShape();
+      gInk.vertex(-10, 150);
+      gInk.vertex(-10, 120);
+      gInk.vertex(100, 75);
+      gInk.vertex(180, 115);
+      gInk.vertex(260, 85);
+      gInk.vertex(260, 150);
+      gInk.endShape(CLOSE);
+      gInk.stroke(20, 20, 20, 140);
+      gInk.strokeWeight(1.2);
+      for (let j = 0; j < 30; j++) {
+        let sx = gInk.random(10, 230);
+        let sy = getMountainYAt(sx, [[-10, 120], [100, 75], [180, 115], [260, 85]]);
+        gInk.line(sx, sy, sx + gInk.random(-15, 15), sy + gInk.random(10, 35));
+      }
+      gInk.stroke(20, 20, 20, 90);
+      gInk.strokeWeight(1.8);
+      for (let y = 110; y < gH; y += 5) {
+        let lx = gInk.random(30, 80);
+        gInk.line(lx, y, lx + gInk.random(80, 140), y);
+      }
+      imgGraphics['ink'] = gInk;
+
+      // 5. 壓克力 (Acrylic)
+      let gAcr = createGraphics(gW, gH);
+      gAcr.background(245, 95, 115);
+      gAcr.noStroke();
+      gAcr.fill(248, 135, 75);
+      gAcr.rect(0, 20, gW, 25);
+      gAcr.fill(252, 175, 80);
+      gAcr.rect(0, 45, gW, 30);
+      gAcr.fill(255, 215, 100);
+      gAcr.rect(0, 75, gW, 35);
+      gAcr.fill(255, 245, 160);
+      gAcr.circle(170, 45, 36);
+      gAcr.fill(255, 255, 210);
+      gAcr.circle(170, 45, 24);
+      gAcr.fill(60, 175, 185);
+      gAcr.triangle(0, 110, 70, 45, 130, 85);
+      gAcr.fill(85, 195, 200);
+      gAcr.triangle(70, 45, 130, 85, 190, 35);
+      gAcr.fill(50, 155, 170);
+      gAcr.triangle(130, 85, 190, 35, 260, 100);
+      gAcr.fill(45, 55, 115);
+      gAcr.triangle(-10, 120, 100, 75, 180, 115);
+      gAcr.fill(65, 75, 145);
+      gAcr.triangle(100, 75, 180, 115, 260, 85);
+      gAcr.fill(30, 40, 95);
+      gAcr.rect(0, 115, gW, 35);
+      gAcr.fill(35, 125, 175);
+      gAcr.rect(0, 110, gW, 40);
+      gAcr.fill(252, 170, 65);
+      gAcr.rect(135, 114, 70, 5, 2);
+      gAcr.rect(145, 123, 50, 4, 2);
+      gAcr.rect(158, 131, 26, 4, 2);
+      imgGraphics['acrylic'] = gAcr;
+
+      // 6. 色鉛筆 (Colored Pencil)
+      let gCp = createGraphics(gW, gH);
+      gCp.background(254, 252, 246);
+      
+      // 色鉛筆天空：多色筆觸斜向交錯疊加
+      drawColoredPencilHatching(gCp, 0, 0, gW, 100, [250, 160, 90], 0.8, 5, 35);
+      drawColoredPencilHatching(gCp, 0, 0, gW, 100, [240, 110, 130], 0.8, 6, -35);
+      drawColoredPencilHatching(gCp, 0, 0, gW, 70, [140, 150, 210], 0.7, 7, 35);
+
+      // 太陽
+      gCp.push();
+      gCp.stroke(245, 120, 80, 180);
+      gCp.strokeWeight(1.2);
+      gCp.noFill();
+      gCp.circle(170, 45, 32);
+      drawColoredPencilHatching(gCp, 150, 25, 40, 40, [250, 190, 70], 1, 3, 45);
+      gCp.pop();
+
+      // 遠山與近山
+      drawColoredPencilMountain(gCp, [[-10, 110], [70, 45], [130, 85], [190, 35], [260, 100]], [90, 110, 170], [230, 120, 100], 35);
+      drawColoredPencilMountain(gCp, [[-10, 120], [100, 75], [180, 115], [260, 85]], [50, 70, 130], [210, 90, 110], -35);
+
+      // 湖泊與水面筆觸倒影
+      drawColoredPencilHatching(gCp, 0, 105, gW, 45, [70, 120, 180], 0.9, 4, 0);
+      drawColoredPencilHatching(gCp, 110, 110, 120, 35, [245, 150, 90], 0.9, 5, 0);
+      imgGraphics['colored_pencil'] = gCp;
+    }
+
+    function drawColoredPencilHatching(g, x, y, w, h, col, strokeW, spacing, angleDeg) {
+      g.push();
+      g.stroke(col[0], col[1], col[2], 160);
+      g.strokeWeight(strokeW);
+      let rad = radians(angleDeg);
+      let cosA = cos(rad), sinA = sin(rad);
+      for (let i = -g.height; i < g.width + g.height; i += spacing) {
+        let x1 = x + i;
+        let y1 = y;
+        let x2 = x1 + h * cosA;
+        let y2 = y1 + h * sinA;
+        g.line(x1 + g.random(-0.5, 0.5), y1, x2 + g.random(-0.5, 0.5), y2);
+      }
+      g.pop();
+    }
+
+    function drawColoredPencilMountain(g, pts, baseColor, highlightColor, angleDeg) {
+      g.push();
+      g.stroke(baseColor[0], baseColor[1], baseColor[2], 220);
+      g.strokeWeight(1.4);
+      g.noFill();
+      g.beginShape();
+      for (let p of pts) {
+        g.vertex(p[0], p[1]);
+      }
+      g.endShape();
+
+      // 山體內部位鉛筆線條填充
+      for (let x = -10; x < 260; x += 4) {
+        let mY = getMountainYAt(x, pts);
+        for (let y = mY; y < 150; y += 4) {
+          g.stroke(baseColor[0] + g.random(-15, 15), baseColor[1] + g.random(-15, 15), baseColor[2] + g.random(-15, 15), 140);
+          g.strokeWeight(0.8);
+          g.line(x, y, x + 3, y + 5);
+          if (g.random() > 0.5) {
+            g.stroke(highlightColor[0], highlightColor[1], highlightColor[2], 120);
+            g.line(x, y, x - 2, y + 4);
+          }
+        }
+      }
+      g.pop();
+    }
+
+    function drawSoftWatercolorPoly(g, pts) {
+      g.beginShape();
+      for (let p of pts) {
+        g.vertex(p[0] + g.random(-2, 2), p[1] + g.random(-2, 2));
+      }
+      g.endShape(CLOSE);
+    }
+
+    function drawImpastoStroke(g, x, y, w, h) {
+      g.push();
+      g.translate(x, y);
+      g.rect(0, 0, w, h, 2);
+      g.fill(255, 255, 255, 30);
+      g.rect(1, 1, w * 0.7, h * 0.4, 1);
+      g.pop();
+    }
+
+    function drawPencilHatching(g, x, y, w, h, strokeW, spacing) {
+      g.push();
+      g.stroke(60, 60, 65, 100);
+      g.strokeWeight(strokeW);
+      for (let offset = -h; offset < w + h; offset += spacing) {
+        g.line(x + offset, y, x + offset + h * 0.7, y + h);
+      }
+      g.pop();
+    }
+
+    function drawOilMountain(g, pts, baseColor) {
+      g.push();
+      g.noStroke();
+      g.fill(baseColor[0], baseColor[1], baseColor[2]);
+      g.beginShape();
+      g.vertex(0, 150);
+      for (let p of pts) {
+        g.vertex(p[0], p[1]);
+      }
+      g.vertex(250, 150);
+      g.endShape(CLOSE);
+
+      for (let i = 0; i < pts.length - 1; i++) {
+        let p1 = pts[i];
+        let p2 = pts[i + 1];
+        let steps = 15;
+        for (let t = 0; t <= steps; t++) {
+          let x = lerp(p1[0], p2[0], t / steps);
+          let y = lerp(p1[1], p2[1], t / steps);
+          for (let h = y; h < 140; h += 7) {
+            g.fill(
+              baseColor[0] + g.random(-15, 25),
+              baseColor[1] + g.random(-15, 25),
+              baseColor[2] + g.random(-10, 30),
+              220
+            );
+            drawImpastoStroke(g, x + g.random(-4, 4), h + g.random(-2, 2), 14, 6);
+          }
+        }
+      }
+      g.pop();
+    }
+
+    function drawPencilMountain(g, pts, strokeW, angleDeg) {
+      g.push();
+      g.stroke(40, 40, 45, 220);
+      g.strokeWeight(strokeW);
+      g.noFill();
+      g.beginShape();
+      for (let p of pts) {
+        g.vertex(p[0], p[1]);
+      }
+      g.endShape();
+
+      g.stroke(40, 40, 45, 140);
+      g.strokeWeight(0.9);
+      let rad = radians(angleDeg);
+      let dirX = cos(rad) * 10;
+      let dirY = sin(rad) * 10;
+
+      for (let y = 30; y < 140; y += 4) {
+        for (let x = -10; x < 260; x += 6) {
+          let mountainY = getMountainYAt(x, pts);
+          if (y >= mountainY) {
+            g.line(x, y, x + dirX, y + dirY);
+          }
+        }
+      }
+      g.pop();
+    }
+
+    function getMountainYAt(x, pts) {
+      if (x <= pts[0][0]) return pts[0][1];
+      if (x >= pts[pts.length - 1][0]) return pts[pts.length - 1][1];
+      for (let i = 0; i < pts.length - 1; i++) {
+        if (x >= pts[i][0] && x <= pts[i + 1][0]) {
+          let t = (x - pts[i][0]) / (pts[i + 1][0] - pts[i][0]);
+          return lerp(pts[i][1], pts[i + 1][1], t);
+        }
+      }
+      return 150;
+    }
+
+    function drawBackgroundGrid() {
+      stroke(226, 232, 240, 150);
+      strokeWeight(1);
+      const step = 30;
+      for (let x = 0; x < width; x += step) line(x, 0, x, height);
+      for (let y = 0; y < height; y += step) line(0, y, width, y);
+    }
+
+    function drawImageCards() {
+      for (let item of imagesData) {
+        let isHover = (hoveredImg === item);
+        let isSelected = (selectedImg === item);
+        
+        push();
+        translate(item.x, item.y);
+
+        if (isSelected) {
+          stroke(79, 70, 229); strokeWeight(3);
+        } else if (isHover) {
+          stroke(147, 51, 234); strokeWeight(2);
+        } else {
+          stroke(203, 213, 225); strokeWeight(1.5);
+        }
+
+        fill(255, 255, 255);
+        rect(-4, -4, item.w + 8, item.h + 8, 12);
+
+        if (imgGraphics[item.id]) {
+          image(imgGraphics[item.id], 0, 0, item.w, item.h);
+        }
+
+        noFill();
+        stroke(0, 0, 0, 15);
+        strokeWeight(1);
+        rect(0, 0, item.w, item.h, 8);
+        pop();
+
+        fill(isSelected || isHover ? color(147, 51, 234) : color(148, 163, 184));
+        stroke(255, 255, 255);
+        strokeWeight(2);
+        circle(item.anchorX, item.anchorY, isHover || isSelected ? 14 : 10);
+      }
+    }
+
+    function drawLabelCards() {
+      textAlign(CENTER, CENTER);
+      textSize(canvasWidth < 640 ? 11 : 13);
+      textFont('Chiron GoRound TC');
+
+      for (let item of labelsData) {
+        let isHover = (hoveredLabel === item);
+
+        push();
+        translate(item.x, item.y);
+
+        if (isHover) {
+          fill(255, 255, 255); stroke(147, 51, 234); strokeWeight(2);
+        } else {
+          fill(255, 255, 255, 230); stroke(226, 232, 240); strokeWeight(1.5);
+        }
+
+        rect(0, 0, item.w, item.h, 10);
+
+        noStroke();
+        fill(isHover ? color(126, 34, 206) : color(51, 65, 85));
+        textStyle(BOLD);
+        text(item.name, item.w / 2, item.h / 2);
+        pop();
+
+        fill(isHover ? color(147, 51, 234) : color(148, 163, 184));
+        stroke(255, 255, 255);
+        strokeWeight(2);
+        circle(item.anchorX, item.anchorY, isHover ? 14 : 10);
+      }
+    }
+
+    function drawConnections() {
+      for (let conn of connections) {
+        let imgNode = imagesData.find(i => i.id === conn.imgId);
+        let labelNode = labelsData.find(l => l.id === conn.labelId);
+
+        if (imgNode && labelNode) {
+          push();
+          if (isEvaluated) {
+            if (conn.imgId === conn.labelId) {
+              stroke(22, 163, 74, 230); fill(22, 163, 74);
+            } else {
+              stroke(225, 29, 72, 230); fill(225, 29, 72);
+            }
+          } else {
+            stroke(99, 102, 241, 220); fill(99, 102, 241);
+          }
+
+          strokeWeight(3.5);
+          drawBezierCurve(imgNode.anchorX, imgNode.anchorY, labelNode.anchorX, labelNode.anchorY);
+          noStroke();
+          circle(imgNode.anchorX, imgNode.anchorY, 8);
+          circle(labelNode.anchorX, labelNode.anchorY, 8);
+          pop();
+        }
+      }
+    }
+
+    function drawActiveDraggingLine() {
+      let startX = null, startY = null;
+      if (draggingFromImg) {
+        startX = draggingFromImg.anchorX; startY = draggingFromImg.anchorY;
+      } else if (selectedImg) {
+        startX = selectedImg.anchorX; startY = selectedImg.anchorY;
+      }
+
+      if (startX !== null) {
+        push();
+        stroke(219, 39, 119, 230);
+        strokeWeight(3);
+        drawBezierCurve(startX, startY, mouseX, mouseY);
+        fill(219, 39, 119);
+        noStroke();
+        circle(mouseX, mouseY, 8);
+        pop();
+      }
+    }
+
+    function drawBezierCurve(x1, y1, x2, y2) {
+      let dx = Math.abs(x2 - x1) * 0.5;
+      noFill();
+      bezier(x1, y1, x1 + dx, y1, x2 - dx, y2, x2, y2);
+    }
+
+    function updateHoverState() {
+      hoveredImg = null; hoveredLabel = null;
+      for (let item of imagesData) {
+        if (mouseX >= item.x && mouseX <= item.x + item.w && mouseY >= item.y && mouseY <= item.y + item.h) {
+          hoveredImg = item; cursor(HAND); return;
+        }
+      }
+      for (let item of labelsData) {
+        if (mouseX >= item.x && mouseX <= item.x + item.w && mouseY >= item.y && mouseY <= item.y + item.h) {
+          hoveredLabel = item; cursor(HAND); return;
+        }
+      }
+      cursor(ARROW);
+    }
+
+    function mousePressed() {
+      if (isEvaluated) return;
+      if (hoveredImg) {
+        draggingFromImg = hoveredImg; selectedImg = hoveredImg;
+        removeConnectionByImg(hoveredImg.id);
+      } else if (hoveredLabel && selectedImg) {
+        addConnection(selectedImg.id, hoveredLabel.id);
+        selectedImg = null;
+      }
+    }
+
+    function mouseReleased() {
+      if (draggingFromImg) {
+        if (hoveredLabel) addConnection(draggingFromImg.id, hoveredLabel.id);
+        draggingFromImg = null;
+      }
+    }
+
+    function addConnection(imgId, labelId) {
+      connections = connections.filter(c => c.imgId !== imgId && c.labelId !== labelId);
+      connections.push({ imgId, labelId });
+    }
+
+    function removeConnectionByImg(imgId) {
+      connections = connections.filter(c => c.imgId !== imgId);
+    }
+
+    function resetConnections() {
+      connections = []; selectedImg = null; draggingFromImg = null; isEvaluated = false;
+      document.getElementById('score-modal').classList.add('hidden');
+    }
+
+    function submitAnswers() {
+      if (connections.length < TECH_DATA.length) {
+        alert('請完成所有題目的配對連線後再提交喔！');
+        return;
+      }
+
+      isEvaluated = true;
+      let score = 0;
+      let analysisHTML = '';
+
+      TECH_DATA.forEach(tech => {
+        let userConn = connections.find(c => c.imgId === tech.id);
+        let isCorrect = userConn && (userConn.labelId === tech.id);
+        let selectedLabel = userConn ? TECH_DATA.find(t => t.id === userConn.labelId) : null;
+
+        if (isCorrect) score++;
+
+        analysisHTML += `
+          <div class="p-3 rounded-xl ${isCorrect ? 'bg-emerald-50 border border-emerald-200' : 'bg-rose-50 border border-rose-200'}">
+            <div class="flex items-center justify-between mb-1">
+              <span class="font-bold text-xs sm:text-sm text-slate-800 flex items-center gap-1.5">
+                <span>${isCorrect ? '✅' : '❌'}</span>
+                <span>${tech.name}</span>
+              </span>
+              <span class="text-xs px-2 py-0.5 rounded-full ${isCorrect ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'} font-medium">
+                ${isCorrect ? '配對正確' : `誤選為：${selectedLabel ? selectedLabel.name : '未連線'}`}
+              </span>
+            </div>
+            <p class="text-xs text-slate-600 mt-1 leading-relaxed"><strong class="text-amber-800">視覺特徵：</strong>${tech.features}</p>
+            ${!isCorrect ? `<p class="text-xs text-rose-700 mt-1">💡 <strong>辨識小撇步：</strong>${tech.tip}</p>` : ''}
+          </div>
+        `;
+      });
+
+      document.getElementById('analysis-list').innerHTML = analysisHTML;
+
+      let modal = document.getElementById('score-modal');
+      let scoreText = document.getElementById('modal-score');
+      let titleText = document.getElementById('modal-title');
+      let descText = document.getElementById('modal-desc');
+      let badge = document.getElementById('modal-badge');
+
+      scoreText.innerText = `${score} / ${TECH_DATA.length}`;
+
+      if (score === TECH_DATA.length) {
+        titleText.innerText = "🎉 完美！藝術大師！";
+        descText.innerText = "你的觀察力太神了！對同一風景在不同繪畫介質下的筆觸特徵瞭若指掌。";
+        badge.innerText = "🏆";
+      } else if (score >= 4) {
+        titleText.innerText = "👏 表現優異！";
+        descText.innerText = "你掌握了大部分的技法特徵，看一下下方錯題解析能更加深印象喔！";
+        badge.innerText = "🎨";
+      } else {
+        titleText.innerText = "💪 繼續加油！";
+        descText.innerText = "別擔心！對照下方的筆觸與紋理解析，再試一次就能完全掌握！";
+        badge.innerText = "✏️";
+      }
+
+      modal.classList.remove('hidden');
+    }
+
+    function restartGame() {
+      resetConnections();
+      initGameNodes();
+    }
+  </script>
+</body>
+</html>
